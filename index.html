@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>نظام التقييم الذكي - نسخة مستقرة</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 40px; background: #f0f2f5; }
+        .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: inline-block; width: 90%; max-width: 450px; }
+        #startBtn { padding: 15px 30px; font-size: 18px; cursor: pointer; border: none; border-radius: 10px; background: #e74c3c; color: white; transition: 0.3s; }
+        #startBtn:disabled { background: #95a5a6; }
+        #status { margin: 15px; color: #555; font-weight: bold; }
+        #transcript { background: #eee; padding: 15px; border-radius: 10px; margin: 15px 0; min-height: 40px; }
+        .score { font-size: 50px; color: #2ecc71; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>اختبار: كيف حالك؟</h2>
+    <p id="status">جاهز للاستماع</p>
+    <button id="startBtn">🎤 اضغط للتحدث</button>
+    <div id="transcript">الإجابة ستظهر هنا...</div>
+    <div id="result" style="display:none">
+        <div id="feedback"></div>
+        <div class="score" id="scoreValue">0</div>
+    </div>
+</div>
+
+<script>
+    const startBtn = document.getElementById('startBtn');
+    const status = document.getElementById('status');
+    const transcriptDiv = document.getElementById('transcript');
+    const resultDiv = document.getElementById('result');
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        status.innerText = "المتصفح لا يدعم التعرف على الصوت. جرب Chrome.";
+    } else {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ar-SA';
+        recognition.interimResults = true; // السماح برؤية الكلام أثناء التحدث
+        recognition.maxAlternatives = 1;
+
+        startBtn.onclick = () => {
+            recognition.start();
+        };
+
+        recognition.onstart = () => {
+            startBtn.disabled = true;
+            status.innerText = "أنا أسمعك الآن... تكلم بوضوح";
+            transcriptDiv.innerText = "...";
+            resultDiv.style.display = "none";
+        };
+
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    const finalSpeech = event.results[i][0].transcript;
+                    transcriptDiv.innerText = finalSpeech;
+                    evaluate(finalSpeech);
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                    transcriptDiv.innerText = interimTranscript; // عرض الكلام لحظياً
+                }
+            }
+        };
+
+        recognition.onerror = (event) => {
+            status.innerText = "خطأ: " + event.error;
+            startBtn.disabled = false;
+        };
+
+        recognition.onend = () => {
+            startBtn.disabled = false;
+            if(status.innerText === "أنا أسمعك الآن... تكلم بوضوح") {
+                status.innerText = "انتهى التسجيل.";
+            }
+        };
+    }
+
+    function evaluate(text) {
+        let score = 0;
+        let msg = "";
+        const t = text.toLowerCase();
+
+        // منطق النفي
+        if (t.includes("مش") || t.includes("لا ") || t.includes("ليس")) {
+            score = 0; msg = "إجابة سلبية";
+        } else if (t.includes("الحمد لله") || t.includes("تمام") || t.includes("بخير")) {
+            score = 2; msg = "ممتاز";
+        } else if (t.includes("كويس") || t.includes("ماشي") || t.includes("طيب")) {
+            score = 1; msg = "مقبول";
+        } else {
+            score = 0; msg = "غير مفهوم";
+        }
+
+        resultDiv.style.display = "block";
+        document.getElementById('scoreValue').innerText = score;
+        document.getElementById('feedback').innerText = msg;
+        status.innerText = "تم التقييم بنجاح";
+    }
+</script>
+
+</body>
+</html>
